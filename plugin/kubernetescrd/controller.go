@@ -9,7 +9,6 @@ import (
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/forward"
-	"github.com/coredns/coredns/plugin/kubernetescrd/apis/coredns/v1alpha1"
 	corednsv1alpha1 "github.com/coredns/coredns/plugin/kubernetescrd/apis/coredns/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +38,7 @@ type dnsZoneCRDControl struct {
 	workqueue         workqueue.RateLimitingInterface
 	pluginMap         *PluginInstanceMap
 	instancer         pluginInstancer
+	namespace         string
 
 	// stopLock is used to enforce only a single call to Stop is active.
 	// Needed because we allow stopping through an http endpoint and
@@ -56,11 +56,12 @@ type lifecyclePluginHandler interface {
 
 type pluginInstancer func(forward.ForwardConfig) (lifecyclePluginHandler, error)
 
-func newDNSZoneCRDController(ctx context.Context, client dynamic.Interface, scheme *runtime.Scheme, pluginMap *PluginInstanceMap, instancer pluginInstancer) dnsZoneCRDController {
+func newDNSZoneCRDController(ctx context.Context, client dynamic.Interface, scheme *runtime.Scheme, namespace string, pluginMap *PluginInstanceMap, instancer pluginInstancer) dnsZoneCRDController {
 	controller := dnsZoneCRDControl{
 		client:    client,
 		scheme:    scheme,
 		stopCh:    make(chan struct{}),
+		namespace: namespace,
 		pluginMap: pluginMap,
 		instancer: instancer,
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DNSZoneCRD"),
@@ -69,10 +70,16 @@ func newDNSZoneCRDController(ctx context.Context, client dynamic.Interface, sche
 	controller.dnsZoneLister, controller.dnsZoneController = cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return controller.client.Resource(v1alpha1.GroupVersion.WithResource("dnszones")).List(ctx, options)
+				if namespace != "" {
+					return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).Namespace(namespace).List(ctx, options)
+				}
+				return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).List(ctx, options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return controller.client.Resource(v1alpha1.GroupVersion.WithResource("dnszones")).Watch(ctx, options)
+				if namespace != "" {
+					return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).Namespace(namespace).Watch(ctx, options)
+				}
+				return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).Watch(ctx, options)
 			},
 		},
 		&unstructured.Unstructured{},

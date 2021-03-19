@@ -18,7 +18,7 @@ import (
 )
 
 func TestCreateDNSZone(t *testing.T) {
-	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t)
+	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "")
 	dnsZone := &corednsv1alpha1.DNSZone{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dns-zone",
@@ -83,7 +83,7 @@ func TestCreateDNSZone(t *testing.T) {
 }
 
 func TestUpdateDNSZone(t *testing.T) {
-	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t)
+	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "")
 	dnsZone := &corednsv1alpha1.DNSZone{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dns-zone",
@@ -164,7 +164,7 @@ func TestUpdateDNSZone(t *testing.T) {
 }
 
 func TestDeleteDNSZone(t *testing.T) {
-	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t)
+	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "")
 	dnsZone := &corednsv1alpha1.DNSZone{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dns-zone",
@@ -214,7 +214,72 @@ func TestDeleteDNSZone(t *testing.T) {
 	}
 }
 
-func setupControllerTestcase(t *testing.T) (dnsZoneCRDController, *fake.FakeDynamicClient, *TestPluginInstancer, *PluginInstanceMap) {
+func TestDNSZoneLimitNamespace(t *testing.T) {
+	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "kube-system")
+	dnsZone := &corednsv1alpha1.DNSZone{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-dns-zone",
+			Namespace: "default",
+		},
+		Spec: corednsv1alpha1.DNSZoneSpec{
+			ZoneName:  "crd.test",
+			ForwardTo: "127.0.0.2",
+		},
+	}
+
+	_, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+		Namespace("default").
+		Create(context.Background(), mustDNSZoneToUnstructured(dnsZone), metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Expected not to error: %s", err)
+	}
+
+	kubeSystemDNSZone := &corednsv1alpha1.DNSZone{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "system-dns-zone",
+			Namespace: "kube-system",
+		},
+		Spec: corednsv1alpha1.DNSZoneSpec{
+			ZoneName:  "system.test",
+			ForwardTo: "127.0.0.3",
+		},
+	}
+
+	_, err = client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+		Namespace("kube-system").
+		Create(context.Background(), mustDNSZoneToUnstructured(kubeSystemDNSZone), metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Expected not to error: %s", err)
+	}
+
+	err = wait.Poll(time.Second, time.Second*5, func() (bool, error) {
+		return testPluginInstancer.NewWithConfigCallCount() == 1, nil
+	})
+	if err != nil {
+		t.Fatalf("Expected plugin instance to have been called exactly once: %s, plugin instance call count: %d", err, testPluginInstancer.NewWithConfigCallCount())
+	}
+
+	handler := testPluginInstancer.NewWithConfigArgsForCall(0)
+	if handler.ReceivedConfig.From != "system.test" {
+		t.Fatalf("Expected plugin to be created for zone: %s but was: %s", "system.test", handler.ReceivedConfig.From)
+	}
+
+	_, ok := pluginInstanceMap.Get("system.test")
+	if !ok {
+		t.Fatal("Expected plugin lookup to succeed")
+	}
+
+	_, ok = pluginInstanceMap.Get("crd.test")
+	if ok {
+		t.Fatal("Expected plugin lookup to fail")
+	}
+
+	if err := controller.Stop(); err != nil {
+		t.Fatalf("Expected no error: %s", err)
+	}
+}
+
+func setupControllerTestcase(t *testing.T, namespace string) (dnsZoneCRDController, *fake.FakeDynamicClient, *TestPluginInstancer, *PluginInstanceMap) {
 	scheme := runtime.NewScheme()
 	scheme.AddKnownTypes(corednsv1alpha1.GroupVersion, &corednsv1alpha1.DNSZone{})
 	customListKinds := map[schema.GroupVersionResource]string{
@@ -223,7 +288,7 @@ func setupControllerTestcase(t *testing.T) (dnsZoneCRDController, *fake.FakeDyna
 	client := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, customListKinds)
 	pluginMap := NewPluginInstanceMap()
 	testPluginInstancer := &TestPluginInstancer{}
-	controller := newDNSZoneCRDController(context.Background(), client, scheme, pluginMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
+	controller := newDNSZoneCRDController(context.Background(), client, scheme, namespace, pluginMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
 		return testPluginInstancer.NewWithConfig(cfg)
 	})
 
