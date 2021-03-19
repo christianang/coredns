@@ -53,6 +53,14 @@ type Forward struct {
 	Next plugin.Handler
 }
 
+// ForwardConfig represents the configuration of the Forward Plugin. This can
+// be used with NewWithConfig to create a new configured instance of the
+// Forward Plugin.
+type ForwardConfig struct {
+	From string
+	To   []string
+}
+
 // New returns a new Forward.
 func New() *Forward {
 	f := &Forward{maxfails: 2, tlsConfig: new(tls.Config), expire: defaultExpire, p: new(random), from: ".", hcInterval: hcInterval, opts: options{forceTCP: false, preferUDP: false, hcRecursionDesired: true}}

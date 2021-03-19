@@ -1,20 +1,28 @@
 package kubernetescrd
 
 import (
+	"os"
+
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
+	clog "github.com/coredns/coredns/plugin/pkg/log"
 
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 )
 
 const pluginName = "kubernetescrd"
+
+var log = clog.NewWithPlugin(pluginName)
 
 func init() {
 	plugin.Register(pluginName, setup)
 }
 
 func setup(c *caddy.Controller) error {
+	klog.SetOutput(os.Stdout)
+
 	k, err := parseKubernetesCRD(c)
 	if err != nil {
 		return plugin.Error(pluginName, err)
