@@ -49,3 +49,10 @@ func (t *TestPluginInstancer) NewWithConfigCallCount() int {
 
 	return len(t.testPluginHandlers)
 }
+
+type TestController struct {
+}
+
+func (t *TestController) Run(threads int) {}
+func (t *TestController) HasSynced() bool { return true }
+func (t *TestController) Stop() error     { return nil }

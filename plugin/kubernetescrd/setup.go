@@ -1,7 +1,9 @@
 package kubernetescrd
 
 import (
+	"context"
 	"os"
+	"time"
 
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
@@ -28,9 +30,35 @@ func setup(c *caddy.Controller) error {
 		return plugin.Error(pluginName, err)
 	}
 
+	err = k.InitKubeCache(context.Background())
+	if err != nil {
+		return plugin.Error(pluginName, err)
+	}
+
 	dnsserver.GetConfig(c).AddPlugin(func(next plugin.Handler) plugin.Handler {
 		k.Next = next
 		return k
+	})
+
+	c.OnStartup(func() error {
+		go k.APIConn.Run(1)
+
+		timeout := time.After(5 * time.Second)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		for {
+			select {
+			case <-ticker.C:
+				if k.APIConn.HasSynced() {
+					return nil
+				}
+			case <-timeout:
+				return nil
+			}
+		}
+	})
+
+	c.OnShutdown(func() error {
+		return k.APIConn.Stop()
 	})
 
 	return nil
@@ -58,7 +86,7 @@ func parseKubernetesCRD(c *caddy.Controller) (*KubernetesCRD, error) {
 }
 
 func parseStanza(c *caddy.Controller) (*KubernetesCRD, error) {
-	k := &KubernetesCRD{}
+	k := New()
 
 	zones := c.RemainingArgs()
 	if len(zones) != 0 {
