@@ -15,7 +15,7 @@ import (
 )
 
 func TestDNSRequestForZone(t *testing.T) {
-	k, closeAll := setupKubernetesCRDTestcase(t)
+	k, closeAll := setupKubernetesCRDTestcase(t, "")
 	defer closeAll()
 
 	m := new(dns.Msg)
@@ -58,7 +58,7 @@ func TestDNSRequestForZone(t *testing.T) {
 }
 
 func TestDNSRequestForSubdomain(t *testing.T) {
-	k, closeAll := setupKubernetesCRDTestcase(t)
+	k, closeAll := setupKubernetesCRDTestcase(t, "")
 	defer closeAll()
 
 	m := new(dns.Msg)
@@ -82,7 +82,7 @@ func TestDNSRequestForSubdomain(t *testing.T) {
 }
 
 func TestDNSRequestForNonexistantZone(t *testing.T) {
-	k, closeAll := setupKubernetesCRDTestcase(t)
+	k, closeAll := setupKubernetesCRDTestcase(t, "")
 	defer closeAll()
 
 	m := new(dns.Msg)
@@ -93,7 +93,48 @@ func TestDNSRequestForNonexistantZone(t *testing.T) {
 	}
 }
 
-func setupKubernetesCRDTestcase(t *testing.T) (*KubernetesCRD, func()) {
+func TestDNSRequestForLimitedZones(t *testing.T) {
+	k, closeAll := setupKubernetesCRDTestcase(t, "crd.test.")
+	defer closeAll()
+
+	m := new(dns.Msg)
+	m.SetQuestion("crd.test.", dns.TypeA)
+	rec := dnstest.NewRecorder(&test.ResponseWriter{})
+	if _, err := k.ServeDNS(context.Background(), rec, m); err != nil {
+		t.Fatalf("Expected not to error: %s", err)
+	}
+
+	if rec.Msg == nil || len(rec.Msg.Answer) != 1 {
+		t.Fatal("Expected an answer")
+	}
+
+	m = new(dns.Msg)
+	m.SetQuestion("sub.crd.test.", dns.TypeA)
+	rec = dnstest.NewRecorder(&test.ResponseWriter{})
+	if _, err := k.ServeDNS(context.Background(), rec, m); err != nil {
+		t.Fatalf("Expected not to error: %s", err)
+	}
+
+	if rec.Msg == nil || len(rec.Msg.Answer) != 1 {
+		t.Fatal("Expected an answer")
+	}
+
+	m = new(dns.Msg)
+	m.SetQuestion("other.test.", dns.TypeA)
+	rec = dnstest.NewRecorder(&test.ResponseWriter{})
+	if rcode, err := k.ServeDNS(context.Background(), rec, m); err == nil || rcode != dns.RcodeServerFailure {
+		t.Fatalf("Expected to return rcode: %d and to error: %s", rcode, err)
+	}
+
+	m = new(dns.Msg)
+	m.SetQuestion("test.", dns.TypeA)
+	rec = dnstest.NewRecorder(&test.ResponseWriter{})
+	if rcode, err := k.ServeDNS(context.Background(), rec, m); err == nil || rcode != dns.RcodeServerFailure {
+		t.Fatalf("Expected to return rcode: %d and to error: %s", rcode, err)
+	}
+}
+
+func setupKubernetesCRDTestcase(t *testing.T, zone string) (*KubernetesCRD, func()) {
 	s := dnstest.NewServer(func(w dns.ResponseWriter, r *dns.Msg) {
 		ret := new(dns.Msg)
 		ret.SetReply(r)
@@ -101,7 +142,8 @@ func setupKubernetesCRDTestcase(t *testing.T) (*KubernetesCRD, func()) {
 		w.WriteMsg(ret)
 	})
 
-	c := caddy.NewTestController("dns", "kubernetescrd")
+	c := caddy.NewTestController("dns", fmt.Sprintf("kubernetescrd %s", zone))
+	c.ServerBlockKeys = []string{"."}
 	k, err := parseKubernetesCRD(c)
 	if err != nil {
 		t.Errorf("Expected not to error: %s", err)

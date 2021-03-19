@@ -8,6 +8,7 @@ import (
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/forward"
 	corednsv1alpha1 "github.com/coredns/coredns/plugin/kubernetescrd/apis/coredns/v1alpha1"
+	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,6 +48,11 @@ func (k *KubernetesCRD) Name() string { return "kubernetescrd" }
 // ServeDNS implements plugin.Handler.
 func (k *KubernetesCRD) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	question := strings.ToLower(r.Question[0].Name)
+
+	state := request.Request{W: w, Req: r}
+	if !k.match(state) {
+		return plugin.NextOrFailure(k.Name(), k.Next, ctx, w, r)
+	}
 
 	var (
 		offset int
@@ -136,4 +142,14 @@ func (k *KubernetesCRD) getClientConfig() (*rest.Config, error) {
 	}
 	cc.ContentType = "application/vnd.kubernetes.protobuf"
 	return cc, err
+}
+
+func (k *KubernetesCRD) match(state request.Request) bool {
+	for _, zone := range k.Zones {
+		if plugin.Name(zone).Matches(state.Name()) || dns.Name(state.Name()) == dns.Name(zone) {
+			return true
+		}
+	}
+
+	return false
 }
