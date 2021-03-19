@@ -75,6 +75,11 @@ func (k *KubernetesCRD) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *d
 	return plugin.NextOrFailure(k.Name(), k.Next, ctx, w, r)
 }
 
+// Ready implements the ready.Readiness interface
+func (k *KubernetesCRD) Ready() bool {
+	return k.APIConn.HasSynced()
+}
+
 // InitKubeCache initializes a new Kubernetes cache.
 func (k *KubernetesCRD) InitKubeCache(ctx context.Context) error {
 	config, err := k.getClientConfig()
