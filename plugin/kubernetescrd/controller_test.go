@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coredns/coredns/plugin/forward"
 	corednsv1alpha1 "github.com/coredns/coredns/plugin/kubernetescrd/apis/coredns/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,8 +66,19 @@ func TestCreateDNSZone(t *testing.T) {
 		t.Fatalf("Exepcted plugin lookup to match what the instancer provided: %#v but was %#v", handler, pluginHandler)
 	}
 
+	if testPluginInstancer.testPluginHandlers[0].OnStartupCallCount() != 1 {
+		t.Fatalf("Expected plugin OnStartup to have been called once, but got: %d", testPluginInstancer.testPluginHandlers[0].OnStartupCallCount())
+	}
+
 	if err := controller.Stop(); err != nil {
 		t.Fatalf("Expected no error: %s", err)
+	}
+
+	err = wait.Poll(time.Second, time.Second*5, func() (bool, error) {
+		return testPluginInstancer.testPluginHandlers[0].OnShutdownCallCount() == 1, nil
+	})
+	if err != nil {
+		t.Fatalf("Expected plugin OnShutdown to have been called once, but got: %d", testPluginInstancer.testPluginHandlers[0].OnShutdownCallCount())
 	}
 }
 
@@ -142,6 +154,10 @@ func TestUpdateDNSZone(t *testing.T) {
 		t.Fatal("Expected lookup for crd.test to fail")
 	}
 
+	if testPluginInstancer.testPluginHandlers[0].OnShutdownCallCount() != 1 {
+		t.Fatalf("Expected plugin OnShutdown to have been called once, but got: %d", testPluginInstancer.testPluginHandlers[0].OnShutdownCallCount())
+	}
+
 	if err := controller.Stop(); err != nil {
 		t.Fatalf("Expected no error: %s", err)
 	}
@@ -189,6 +205,10 @@ func TestDeleteDNSZone(t *testing.T) {
 		t.Fatalf("Expected lookup for crd.test to fail: %s", err)
 	}
 
+	if testPluginInstancer.testPluginHandlers[0].OnShutdownCallCount() != 1 {
+		t.Fatalf("Expected plugin OnShutdown to have been called once, but got: %d", testPluginInstancer.testPluginHandlers[0].OnShutdownCallCount())
+	}
+
 	if err := controller.Stop(); err != nil {
 		t.Fatalf("Expected no error: %s", err)
 	}
@@ -203,7 +223,9 @@ func setupControllerTestcase(t *testing.T) (dnsZoneCRDController, *fake.FakeDyna
 	client := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, customListKinds)
 	pluginMap := NewPluginInstanceMap()
 	testPluginInstancer := &TestPluginInstancer{}
-	controller := newDNSZoneCRDController(context.Background(), client, scheme, pluginMap, testPluginInstancer.NewWithConfig)
+	controller := newDNSZoneCRDController(context.Background(), client, scheme, pluginMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
+		return testPluginInstancer.NewWithConfig(cfg)
+	})
 
 	go controller.Run(1)
 

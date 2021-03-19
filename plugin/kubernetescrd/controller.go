@@ -48,7 +48,13 @@ type dnsZoneCRDControl struct {
 	stopCh   chan struct{}
 }
 
-type pluginInstancer func(forward.ForwardConfig) (plugin.Handler, error)
+type lifecyclePluginHandler interface {
+	plugin.Handler
+	OnStartup() error
+	OnShutdown() error
+}
+
+type pluginInstancer func(forward.ForwardConfig) (lifecyclePluginHandler, error)
 
 func newDNSZoneCRDController(ctx context.Context, client dynamic.Interface, scheme *runtime.Scheme, pluginMap *PluginInstanceMap, instancer pluginInstancer) dnsZoneCRDController {
 	controller := dnsZoneCRDControl{
@@ -114,6 +120,11 @@ func (d *dnsZoneCRDControl) Run(threads int) {
 	}
 
 	<-d.stopCh
+
+	// Shutdown all plugins
+	for _, plugin := range d.pluginMap.List() {
+		plugin.OnShutdown()
+	}
 }
 
 // HasSynced returns true once the controller has completed an initial resource
@@ -170,7 +181,10 @@ func (d *dnsZoneCRDControl) sync(key string) error {
 	}
 
 	if !exists {
-		d.pluginMap.Delete(key)
+		plugin := d.pluginMap.Delete(key)
+		if plugin != nil {
+			plugin.OnShutdown()
+		}
 	} else {
 		dnsZone, err := d.convertToDNSZone(obj.(runtime.Object))
 		if err != nil {
@@ -184,7 +198,14 @@ func (d *dnsZoneCRDControl) sync(key string) error {
 		if err != nil {
 			return err
 		}
-		d.pluginMap.Upsert(key, dnsZone.Spec.ZoneName, plugin)
+		err = plugin.OnStartup()
+		if err != nil {
+			return err
+		}
+		oldPlugin, updated := d.pluginMap.Upsert(key, dnsZone.Spec.ZoneName, plugin)
+		if updated {
+			oldPlugin.OnShutdown()
+		}
 	}
 
 	return nil

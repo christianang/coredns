@@ -11,7 +11,7 @@ import (
 // which plugin instances should be delegated to for a given zone.
 type PluginInstanceMap struct {
 	mutex          *sync.RWMutex
-	zonesToPlugins map[string]plugin.Handler
+	zonesToPlugins map[string]lifecyclePluginHandler
 	keyToZones     map[string]string
 }
 
@@ -19,41 +19,65 @@ type PluginInstanceMap struct {
 func NewPluginInstanceMap() *PluginInstanceMap {
 	return &PluginInstanceMap{
 		mutex:          &sync.RWMutex{},
-		zonesToPlugins: make(map[string]plugin.Handler),
+		zonesToPlugins: make(map[string]lifecyclePluginHandler),
 		keyToZones:     make(map[string]string),
 	}
 }
 
-// Upsert adds or updates the map with a zone to plugin handler mapping. If
-// the same key is provided it will overwrite the old zone for that key with
-// the new zone.
-func (p *PluginInstanceMap) Upsert(key, zone string, handler plugin.Handler) {
+// Upsert adds or updates the map with a zone to plugin handler mapping. If the
+// same key is provided it will overwrite the old zone for that key with the
+// new zone. Returns the plugin instance and true if the upsert was an update
+// operation and not a create operation.
+func (p *PluginInstanceMap) Upsert(key, zone string, handler lifecyclePluginHandler) (lifecyclePluginHandler, bool) {
+	var isUpdate bool
+	var oldPlugin lifecyclePluginHandler
 	p.mutex.Lock()
 	normalizedZone := plugin.Host(zone).Normalize()
-	if oldZone, ok := p.keyToZones[key]; ok {
+	oldZone, ok := p.keyToZones[key]
+	if ok {
+		oldPlugin = p.zonesToPlugins[oldZone]
+		isUpdate = true
 		delete(p.zonesToPlugins, oldZone)
 	}
 
 	p.keyToZones[key] = normalizedZone
 	p.zonesToPlugins[normalizedZone] = handler
 	p.mutex.Unlock()
+	return oldPlugin, isUpdate
 }
 
 // Get gets the plugin handler provided a zone name. It will return true if the
 // plugin handler exists and false if it does not exist.
-func (pm *PluginInstanceMap) Get(zone string) (plugin.Handler, bool) {
-	pm.mutex.RLock()
+func (p *PluginInstanceMap) Get(zone string) (lifecyclePluginHandler, bool) {
+	p.mutex.RLock()
 	normalizedZone := plugin.Host(zone).Normalize()
-	handler, ok := pm.zonesToPlugins[normalizedZone]
-	pm.mutex.RUnlock()
+	handler, ok := p.zonesToPlugins[normalizedZone]
+	p.mutex.RUnlock()
 	return handler, ok
 }
 
-// Delete deletes the zone and plugin handler from the map.
-func (p *PluginInstanceMap) Delete(key string) {
+// List lists all the plugin instances in the map.
+func (p *PluginInstanceMap) List() []lifecyclePluginHandler {
 	p.mutex.RLock()
+	plugins := make([]lifecyclePluginHandler, len(p.zonesToPlugins))
+	var i int
+	for _, v := range p.zonesToPlugins {
+		plugins[i] = v
+		i++
+	}
+	p.mutex.RUnlock()
+	return plugins
+}
+
+// Delete deletes the zone and plugin handler from the map. Returns the plugin
+// instance that was deleted, useful for shutting down. Returns nil if no
+// plugin was found.
+func (p *PluginInstanceMap) Delete(key string) lifecyclePluginHandler {
+	p.mutex.Lock()
 	zone := p.keyToZones[key]
+	plugin := p.zonesToPlugins[zone]
 	delete(p.zonesToPlugins, zone)
 	delete(p.keyToZones, key)
-	p.mutex.RUnlock()
+	p.mutex.Unlock()
+	return plugin
 }

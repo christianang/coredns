@@ -40,9 +40,32 @@ func TestPluginMap(t *testing.T) {
 		t.Fatal("Expected plugin instance map to not return a plugin")
 	}
 
+	// list
+
+	plugins := pluginInstanceMap.List()
+	if len(plugins) != 2 {
+		t.Fatalf("Expected plugin instance map to have len %d, got: %d", 2, len(plugins))
+	}
+
+	if plugins[0] != zone1ForwardPlugin && plugins[0] != zone2ForwardPlugin {
+		t.Fatalf("Expected plugin instance map to list plugin[0] with address: %p or %p but was: %p", zone1ForwardPlugin, zone2ForwardPlugin, plugins[0])
+	}
+
+	if plugins[1] != zone1ForwardPlugin && plugins[1] != zone2ForwardPlugin {
+		t.Fatalf("Expected plugin instance map to list plugin[1] with address: %p or %p but was: %p", zone1ForwardPlugin, zone2ForwardPlugin, plugins[1])
+	}
+
 	// update record with the same key
 
-	pluginInstanceMap.Upsert("default/some-dns-zone", "new-zone-1.test", zone1ForwardPlugin)
+	oldPlugin, update := pluginInstanceMap.Upsert("default/some-dns-zone", "new-zone-1.test", zone1ForwardPlugin)
+
+	if !update {
+		t.Fatalf("Expected Upsert to be an update")
+	}
+
+	if oldPlugin != zone1ForwardPlugin {
+		t.Fatalf("Expected Upsert to return the old plugin %#v, got: %#v", zone1ForwardPlugin, oldPlugin)
+	}
 
 	if plugin, exists := pluginInstanceMap.Get("new-zone-1.test"); exists && plugin != zone1ForwardPlugin {
 		t.Fatalf("Expected plugin instance map to get plugin with address: %p but was: %p", zone1ForwardPlugin, plugin)
@@ -54,9 +77,13 @@ func TestPluginMap(t *testing.T) {
 
 	// delete record by key
 
-	pluginInstanceMap.Delete("default/some-dns-zone")
+	deletedPlugin := pluginInstanceMap.Delete("default/some-dns-zone")
 
 	if _, exists := pluginInstanceMap.Get("new-zone-1.test"); exists {
 		t.Fatalf("Expected plugin instance map to not get plugin with zone: %s", "new-zone-1.test")
+	}
+
+	if deletedPlugin == nil || deletedPlugin != zone1ForwardPlugin {
+		t.Fatalf("Expected Delete to return the deleted plugin %#v, got: %#v", zone1ForwardPlugin, deletedPlugin)
 	}
 }

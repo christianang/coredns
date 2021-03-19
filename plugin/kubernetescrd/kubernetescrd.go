@@ -87,7 +87,7 @@ func (k *KubernetesCRD) InitKubeCache(ctx context.Context) error {
 		return fmt.Errorf("failed to create kubernetescrd controller: %q", err)
 	}
 
-	k.APIConn = newDNSZoneCRDController(ctx, dynamicKubeClient, scheme, k.pluginInstanceMap, func(cfg forward.ForwardConfig) (plugin.Handler, error) {
+	k.APIConn = newDNSZoneCRDController(ctx, dynamicKubeClient, scheme, k.pluginInstanceMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
 		return forward.NewWithConfig(cfg)
 	})
 
