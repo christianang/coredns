@@ -16,6 +16,14 @@ for a description of stub-domains within Kubernetes.
 
 This plugin can only be used once per Server Block.
 
+## Security
+
+This plugin gives users of Kubernetes another avenue of modifying the CoreDNS
+server other than the `coredns` configmap. Therefore, it is important that you
+limit the RBAC and the `namespace` the plugin reads from to reduce the surface
+area a malicious actor can use. Ideally, the level of access to create `DNSZone`
+resources is at the same level as the access to the `coredns` configmap.
+
 ## Syntax
 
 ~~~
@@ -48,6 +56,10 @@ kubernetescrd [ZONES...] {
   ignored if connecting in-cluster (i.e., the endpoint is not specified).
 * `namespace` **NAMESPACE** only reads `DNSZone` resources from the namespace
   listed. If this option is omitted then it will read from all namespaces.
+  **Note**: It is recommended to limit the namespace (e.g to `kube-system`)
+  because this can be potentially misused. It is ideal to keep the level of
+  write access similar to the `coredns` configmap in the `kube-system`
+  namespace.
 
 ## Ready
 
