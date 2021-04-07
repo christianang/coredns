@@ -73,6 +73,7 @@ type ForwardConfig struct {
 	Expire           *time.Duration
 	MaxConcurrent    *int64
 	Policy           string
+	TapPlugin        *dnstap.Dnstap
 }
 
 // New returns a new Forward.
@@ -127,6 +128,7 @@ func NewWithConfig(config ForwardConfig) (*Forward, error) {
 			return f, fmt.Errorf("unknown policy '%s'", config.Policy)
 		}
 	}
+	f.tapPlugin = config.TapPlugin
 
 	toHosts, err := parse.HostPortOrFile(config.To...)
 	if err != nil {

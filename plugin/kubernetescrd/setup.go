@@ -8,6 +8,7 @@ import (
 	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
+	"github.com/coredns/coredns/plugin/dnstap"
 	clog "github.com/coredns/coredns/plugin/pkg/log"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -55,6 +56,15 @@ func setup(c *caddy.Controller) error {
 				return nil
 			}
 		}
+	})
+
+	c.OnStartup(func() error {
+		if taph := dnsserver.GetConfig(c).Handler("dnstap"); taph != nil {
+			if tapPlugin, ok := taph.(dnstap.Dnstap); ok {
+				k.APIConn.(*dnsZoneCRDControl).tapPlugin = &tapPlugin
+			}
+		}
+		return nil
 	})
 
 	c.OnShutdown(func() error {

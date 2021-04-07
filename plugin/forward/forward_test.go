@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/coredns/coredns/plugin/dnstap"
 )
 
 func TestList(t *testing.T) {
@@ -34,6 +36,7 @@ func TestNewWithConfig(t *testing.T) {
 	expectedServerName := "test"
 	expectedExpire := 20 * time.Second
 	expectedMaxConcurrent := int64(5)
+	expectedDnstap := dnstap.Dnstap{}
 
 	f, err := NewWithConfig(ForwardConfig{
 		From:             "test",
@@ -48,6 +51,7 @@ func TestNewWithConfig(t *testing.T) {
 		TLSServerName:    expectedServerName,
 		Expire:           &expectedExpire,
 		MaxConcurrent:    &expectedMaxConcurrent,
+		TapPlugin:        &expectedDnstap,
 	})
 	if err != nil {
 		t.Fatalf("Expected not to error: %s", err)
@@ -143,6 +147,10 @@ func TestNewWithConfig(t *testing.T) {
 
 	if f.proxies[1].transport.tlsConfig != f.tlsConfig {
 		t.Fatalf("Expected proxy.transport.tlsConfig to be %#v, got: %#v", f.tlsConfig, f.proxies[1].transport.tlsConfig)
+	}
+
+	if f.tapPlugin != &expectedDnstap {
+		t.Fatalf("Expcted tapPlugin to be %p, got: %p", &expectedDnstap, f.tapPlugin)
 	}
 }
 

@@ -89,6 +89,17 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Errorf("Expected Namespace to be: %s\n but was: %s\n", "kube-system", k.Namespace)
 	}
 
+	c = caddy.NewTestController("dns", `kubernetescrd {
+		namespace kube-system
+	}`)
+	k, err = parseKubernetesCRD(c)
+	if err != nil {
+		t.Fatalf("Expected no errors, but got: %v", err)
+	}
+	if k.Namespace != "kube-system" {
+		t.Errorf("Expected Namespace to be: %s\n but was: %s\n", "kube-system", k.Namespace)
+	}
+
 	// negative
 
 	c = caddy.NewTestController("dns", `kubernetescrd {

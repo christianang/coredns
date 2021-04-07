@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/coredns/coredns/plugin"
+	"github.com/coredns/coredns/plugin/dnstap"
 	"github.com/coredns/coredns/plugin/forward"
 	corednsv1alpha1 "github.com/coredns/coredns/plugin/kubernetescrd/apis/coredns/v1alpha1"
 
@@ -38,6 +39,7 @@ type dnsZoneCRDControl struct {
 	workqueue         workqueue.RateLimitingInterface
 	pluginMap         *PluginInstanceMap
 	instancer         pluginInstancer
+	tapPlugin         *dnstap.Dnstap
 	namespace         string
 
 	// stopLock is used to enforce only a single call to Stop is active.
@@ -198,8 +200,9 @@ func (d *dnsZoneCRDControl) sync(key string) error {
 			return err
 		}
 		forwardConfig := forward.ForwardConfig{
-			From: dnsZone.Spec.ZoneName,
-			To:   []string{dnsZone.Spec.ForwardTo},
+			From:      dnsZone.Spec.ZoneName,
+			To:        []string{dnsZone.Spec.ForwardTo},
+			TapPlugin: d.tapPlugin,
 		}
 		plugin, err := d.instancer(forwardConfig)
 		if err != nil {
