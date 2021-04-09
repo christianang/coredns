@@ -1,4 +1,4 @@
-package kubernetescrd
+package forwardcrd
 
 import (
 	"strings"
@@ -8,17 +8,17 @@ import (
 	"github.com/coredns/coredns/plugin"
 )
 
-func TestKubernetesCRDParse(t *testing.T) {
-	c := caddy.NewTestController("dns", `kubernetescrd`)
-	_, err := parseKubernetesCRD(c)
+func TestForwardCRDParse(t *testing.T) {
+	c := caddy.NewTestController("dns", `forwardcrd`)
+	_, err := parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		endpoint http://localhost:9090
 	}`)
-	k, err := parseKubernetesCRD(c)
+	k, err := parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
@@ -26,10 +26,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Errorf("Expected APIServerEndpoint to be: %s\n but was: %s\n", "http://localhost:9090", k.APIServerEndpoint)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		tls cert.crt key.key cacert.crt
 	}`)
-	k, err = parseKubernetesCRD(c)
+	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
@@ -43,24 +43,24 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Errorf("Expected APICertAuth to be: %s\n but was: %s\n", "cacert.crt", k.APICertAuth)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		kubeconfig foo.kubeconfig
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		kubeconfig foo.kubeconfig context
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd example.org`)
-	k, err = parseKubernetesCRD(c)
+	c = caddy.NewTestController("dns", `forwardcrd example.org`)
+	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
@@ -68,9 +68,9 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected Zones to consist of \"example.org.\" but was %v", k.Zones)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd`)
+	c = caddy.NewTestController("dns", `forwardcrd`)
 	c.ServerBlockKeys = []string{"example.org"}
-	k, err = parseKubernetesCRD(c)
+	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
@@ -78,10 +78,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected Zones to consist of \"example.org.\" but was %v", k.Zones)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		namespace kube-system
 	}`)
-	k, err = parseKubernetesCRD(c)
+	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
@@ -89,10 +89,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Errorf("Expected Namespace to be: %s\n but was: %s\n", "kube-system", k.Namespace)
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		namespace kube-system
 	}`)
-	k, err = parseKubernetesCRD(c)
+	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
@@ -102,10 +102,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 
 	// negative
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		endpoint http://localhost:9090 http://foo.bar:1024
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err == nil {
 		t.Fatalf("Expected errors, but got nil")
 	}
@@ -113,10 +113,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected error containing \"Wrong argument count\", but got: %v", err.Error())
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		endpoint
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err == nil {
 		t.Fatalf("Expected errors, but got nil")
 	}
@@ -124,10 +124,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected error containing \"Wrong argument count\", but got: %v", err.Error())
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		tls foo bar
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err == nil {
 		t.Fatalf("Expected errors, but got nil")
 	}
@@ -135,10 +135,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected error containing \"Wrong argument count\", but got: %v", err.Error())
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		kubeconfig
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err == nil {
 		t.Fatalf("Expected errors, but got nil")
 	}
@@ -146,10 +146,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected error containing \"Wrong argument count\", but got: %v", err.Error())
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		kubeconfig too many args
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err == nil {
 		t.Fatalf("Expected errors, but got nil")
 	}
@@ -157,10 +157,10 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected error containing \"Wrong argument count\", but got: %v", err.Error())
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd {
+	c = caddy.NewTestController("dns", `forwardcrd {
 		invalid
 	}`)
-	_, err = parseKubernetesCRD(c)
+	_, err = parseForwardCRD(c)
 	if err == nil {
 		t.Fatalf("Expected errors, but got nil")
 	}
@@ -168,9 +168,9 @@ func TestKubernetesCRDParse(t *testing.T) {
 		t.Fatalf("Expected error containing \"unknown property\", but got: %v", err.Error())
 	}
 
-	c = caddy.NewTestController("dns", `kubernetescrd
-kubernetescrd`)
-	_, err = parseKubernetesCRD(c)
+	c = caddy.NewTestController("dns", `forwardcrd
+forwardcrd`)
+	_, err = parseForwardCRD(c)
 	if err == nil {
 		t.Fatalf("Expected errors, but got nil")
 	}

@@ -1,4 +1,4 @@
-package kubernetescrd
+package forwardcrd
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"k8s.io/klog"
 )
 
-const pluginName = "kubernetescrd"
+const pluginName = "forwardcrd"
 
 var log = clog.NewWithPlugin(pluginName)
 
@@ -26,7 +26,7 @@ func init() {
 func setup(c *caddy.Controller) error {
 	klog.SetOutput(os.Stdout)
 
-	k, err := parseKubernetesCRD(c)
+	k, err := parseForwardCRD(c)
 	if err != nil {
 		return plugin.Error(pluginName, err)
 	}
@@ -74,9 +74,9 @@ func setup(c *caddy.Controller) error {
 	return nil
 }
 
-func parseKubernetesCRD(c *caddy.Controller) (*KubernetesCRD, error) {
+func parseForwardCRD(c *caddy.Controller) (*ForwardCRD, error) {
 	var (
-		k   *KubernetesCRD
+		k   *ForwardCRD
 		err error
 		i   int
 	)
@@ -95,7 +95,7 @@ func parseKubernetesCRD(c *caddy.Controller) (*KubernetesCRD, error) {
 	return k, nil
 }
 
-func parseStanza(c *caddy.Controller) (*KubernetesCRD, error) {
+func parseStanza(c *caddy.Controller) (*ForwardCRD, error) {
 	k := New()
 
 	zones := c.RemainingArgs()

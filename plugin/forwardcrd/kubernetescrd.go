@@ -1,4 +1,4 @@
-package kubernetescrd
+package forwardcrd
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/forward"
-	corednsv1alpha1 "github.com/coredns/coredns/plugin/kubernetescrd/apis/coredns/v1alpha1"
+	corednsv1alpha1 "github.com/coredns/coredns/plugin/forwardcrd/apis/coredns/v1alpha1"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
@@ -18,10 +18,10 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// KubernetesCRD represents a plugin instance that can watch DNSZone CRDs
+// ForwardCRD represents a plugin instance that can watch DNSZone CRDs
 // within a Kubernetes clusters to dynamically configure stub-domains to proxy
 // requests to an upstream resolver.
-type KubernetesCRD struct {
+type ForwardCRD struct {
 	Zones             []string
 	APIServerEndpoint string
 	APIClientCert     string
@@ -35,18 +35,18 @@ type KubernetesCRD struct {
 	pluginInstanceMap *PluginInstanceMap
 }
 
-// New returns a new KubernetesCRD instance.
-func New() *KubernetesCRD {
-	return &KubernetesCRD{
+// New returns a new ForwardCRD instance.
+func New() *ForwardCRD {
+	return &ForwardCRD{
 		pluginInstanceMap: NewPluginInstanceMap(),
 	}
 }
 
 // Name implements plugin.Handler.
-func (k *KubernetesCRD) Name() string { return "kubernetescrd" }
+func (k *ForwardCRD) Name() string { return "forwardcrd" }
 
 // ServeDNS implements plugin.Handler.
-func (k *KubernetesCRD) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
+func (k *ForwardCRD) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (int, error) {
 	question := strings.ToLower(r.Question[0].Name)
 
 	state := request.Request{W: w, Req: r}
@@ -76,12 +76,12 @@ func (k *KubernetesCRD) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *d
 }
 
 // Ready implements the ready.Readiness interface
-func (k *KubernetesCRD) Ready() bool {
+func (k *ForwardCRD) Ready() bool {
 	return k.APIConn.HasSynced()
 }
 
 // InitKubeCache initializes a new Kubernetes cache.
-func (k *KubernetesCRD) InitKubeCache(ctx context.Context) error {
+func (k *ForwardCRD) InitKubeCache(ctx context.Context) error {
 	config, err := k.getClientConfig()
 	if err != nil {
 		return err
@@ -89,13 +89,13 @@ func (k *KubernetesCRD) InitKubeCache(ctx context.Context) error {
 
 	dynamicKubeClient, err := dynamic.NewForConfig(config)
 	if err != nil {
-		return fmt.Errorf("failed to create kubernetescrd controller: %q", err)
+		return fmt.Errorf("failed to create forwardcrd controller: %q", err)
 	}
 
 	scheme := runtime.NewScheme()
 	err = corednsv1alpha1.AddToScheme(scheme)
 	if err != nil {
-		return fmt.Errorf("failed to create kubernetescrd controller: %q", err)
+		return fmt.Errorf("failed to create forwardcrd controller: %q", err)
 	}
 
 	k.APIConn = newDNSZoneCRDController(ctx, dynamicKubeClient, scheme, k.Namespace, k.pluginInstanceMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
@@ -105,7 +105,7 @@ func (k *KubernetesCRD) InitKubeCache(ctx context.Context) error {
 	return nil
 }
 
-func (k *KubernetesCRD) getClientConfig() (*rest.Config, error) {
+func (k *ForwardCRD) getClientConfig() (*rest.Config, error) {
 	if k.ClientConfig != nil {
 		return k.ClientConfig.ClientConfig()
 	}
@@ -149,7 +149,7 @@ func (k *KubernetesCRD) getClientConfig() (*rest.Config, error) {
 	return cc, err
 }
 
-func (k *KubernetesCRD) match(state request.Request) bool {
+func (k *ForwardCRD) match(state request.Request) bool {
 	for _, zone := range k.Zones {
 		if plugin.Name(zone).Matches(state.Name()) || dns.Name(state.Name()) == dns.Name(zone) {
 			return true

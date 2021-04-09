@@ -51,7 +51,7 @@ var Directives = []string{
 	"secondary",
 	"etcd",
 	"loop",
-	"kubernetescrd",
+	"forwardcrd",
 	"forward",
 	"grpc",
 	"erratic",

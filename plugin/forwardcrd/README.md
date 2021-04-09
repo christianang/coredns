@@ -1,13 +1,13 @@
-# kubernetescrd
+# forwardcrd
 
 ## Name
 
-*kubernetescrd* - enables proxying DNS messages to upstream resolvers by reading
+*forwardcrd* - enables proxying DNS messages to upstream resolvers by reading
 CRDs from a Kubernetes cluster
 
 ## Description
 
-The *kubernetescrd* plugin is used to dynamically configure stub-domains by
+The *forwardcrd* plugin is used to dynamically configure stub-domains by
 reading a `DNSZone` CRD within a Kubernetes cluster.
 
 See [Configuring Private DNS Zones and Upstream Nameservers in
@@ -27,16 +27,16 @@ resources is at the same level as the access to the `coredns` configmap.
 ## Syntax
 
 ~~~
-kubernetescrd [ZONES...]
+forwardcrd [ZONES...]
 ~~~
 
-With only the plugin specified, the *kubernetescrd* plugin will default to the
+With only the plugin specified, the *forwardcrd* plugin will default to the
 zone specified in the server's block. It will allow any `DNSZone` resource that
 matches or includes the zone as a suffix. If **ZONES** are specified it allows
 any zone listed as a suffix.
 
 ```
-kubernetescrd [ZONES...] {
+forwardcrd [ZONES...] {
   endpoint URL
   tls CERT KEY CACERT
   kubeconfig KUBECONFIG [CONTEXT]
@@ -72,7 +72,7 @@ Allow `DNSZone` resources to be created for any zone:
 
 ~~~ txt
 . {
-    kubernetescrd
+    forwardcrd
 }
 ~~~
 
@@ -81,7 +81,7 @@ Allow `DNSZone` resources to be created for the `.local` zone:
 
 ~~~ txt
 . {
-    kubernetescrd local
+    forwardcrd local
 }
 ~~~
 
@@ -89,7 +89,7 @@ or:
 
 ~~~ txt
 local {
-    kubernetescrd
+    forwardcrd
 }
 ~~~
 
@@ -97,7 +97,7 @@ Only read `DNSZone` resources from the `kube-system` namespace:
 
 ~~~ txt
 . {
-    kubernetescrd {
+    forwardcrd {
         namespace kube-system
     }
 }
@@ -107,7 +107,7 @@ Connect to Kubernetes with CoreDNS running outside the cluster:
 
 ~~~ txt
 . {
-    kubernetescrd {
+    forwardcrd {
         endpoint https://k8s-endpoint:8443
         tls cert key cacert
     }
@@ -118,7 +118,7 @@ or:
 
 ~~~ txt
 . {
-    kubernetescrd {
+    forwardcrd {
         kubeconfig ./kubeconfig
     }
 }
@@ -132,13 +132,13 @@ Apply the `DNSZone` CRD to your Kubernetes cluster.
 kubectl apply -f ./manifests/crds/coredns.io_dnszones.yaml
 ```
 
-Assuming the **kubernetescrd** plugin has been configured to allow `DNSZone`
+Assuming the **forwardcrd** plugin has been configured to allow `DNSZone`
 resources within any `zone`, but must be created in the `kube-system` namespace.
 E.g:
 
 ~~~ txt
 . {
-    kubernetescrd {
+:   forwardcrd {
         namespace kube-system
     }
 }

@@ -1,4 +1,4 @@
-package kubernetescrd
+package forwardcrd
 
 import (
 	"sync"
@@ -7,7 +7,7 @@ import (
 )
 
 // PluginInstanceMap represents a map of zones to coredns plugin instances that
-// is thread-safe. It enables the kubernetescrd plugin to save the state of
+// is thread-safe. It enables the forwardcrd plugin to save the state of
 // which plugin instances should be delegated to for a given zone.
 type PluginInstanceMap struct {
 	mutex          *sync.RWMutex

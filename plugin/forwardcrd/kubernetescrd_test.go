@@ -1,4 +1,4 @@
-package kubernetescrd
+package forwardcrd
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestDNSRequestForZone(t *testing.T) {
-	k, closeAll := setupKubernetesCRDTestcase(t, "")
+	k, closeAll := setupForwardCRDTestcase(t, "")
 	defer closeAll()
 
 	m := new(dns.Msg)
@@ -58,7 +58,7 @@ func TestDNSRequestForZone(t *testing.T) {
 }
 
 func TestDNSRequestForSubdomain(t *testing.T) {
-	k, closeAll := setupKubernetesCRDTestcase(t, "")
+	k, closeAll := setupForwardCRDTestcase(t, "")
 	defer closeAll()
 
 	m := new(dns.Msg)
@@ -82,7 +82,7 @@ func TestDNSRequestForSubdomain(t *testing.T) {
 }
 
 func TestDNSRequestForNonexistantZone(t *testing.T) {
-	k, closeAll := setupKubernetesCRDTestcase(t, "")
+	k, closeAll := setupForwardCRDTestcase(t, "")
 	defer closeAll()
 
 	m := new(dns.Msg)
@@ -94,7 +94,7 @@ func TestDNSRequestForNonexistantZone(t *testing.T) {
 }
 
 func TestDNSRequestForLimitedZones(t *testing.T) {
-	k, closeAll := setupKubernetesCRDTestcase(t, "crd.test.")
+	k, closeAll := setupForwardCRDTestcase(t, "crd.test.")
 	defer closeAll()
 
 	m := new(dns.Msg)
@@ -134,7 +134,7 @@ func TestDNSRequestForLimitedZones(t *testing.T) {
 	}
 }
 
-func setupKubernetesCRDTestcase(t *testing.T, zone string) (*KubernetesCRD, func()) {
+func setupForwardCRDTestcase(t *testing.T, zone string) (*ForwardCRD, func()) {
 	s := dnstest.NewServer(func(w dns.ResponseWriter, r *dns.Msg) {
 		ret := new(dns.Msg)
 		ret.SetReply(r)
@@ -142,9 +142,9 @@ func setupKubernetesCRDTestcase(t *testing.T, zone string) (*KubernetesCRD, func
 		w.WriteMsg(ret)
 	})
 
-	c := caddy.NewTestController("dns", fmt.Sprintf("kubernetescrd %s", zone))
+	c := caddy.NewTestController("dns", fmt.Sprintf("forwardcrd %s", zone))
 	c.ServerBlockKeys = []string{"."}
-	k, err := parseKubernetesCRD(c)
+	k, err := parseForwardCRD(c)
 	if err != nil {
 		t.Errorf("Expected not to error: %s", err)
 	}
