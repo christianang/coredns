@@ -40,7 +40,7 @@ forwardcrd [ZONES...] {
   endpoint URL
   tls CERT KEY CACERT
   kubeconfig KUBECONFIG [CONTEXT]
-  namespace NAMESPACE
+  namespace [NAMESPACE]
 }
 ```
 
@@ -54,12 +54,13 @@ forwardcrd [ZONES...] {
   then the current context specified in kubeconfig will be used.  It supports
   TLS, username and password, or token-based authentication.  This option is
   ignored if connecting in-cluster (i.e., the endpoint is not specified).
-* `namespace` **NAMESPACE** only reads `DNSZone` resources from the namespace
-  listed. If this option is omitted then it will read from all namespaces.
-  **Note**: It is recommended to limit the namespace (e.g to `kube-system`)
-  because this can be potentially misused. It is ideal to keep the level of
-  write access similar to the `coredns` configmap in the `kube-system`
-  namespace.
+* `namespace` **[NAMESPACE]** only reads `DNSZone` resources from the namespace
+  listed. If this option is omitted then it will read from the default
+  namespace, `kube-system`. If this option is specified without any namespaces
+  listed it will read from all namespaces.  **Note**: It is recommended to limit
+  the namespace (e.g to `kube-system`) because this can be potentially misused.
+  It is ideal to keep the level of write access similar to the `coredns`
+  configmap in the `kube-system` namespace.
 
 ## Ready
 
@@ -90,7 +91,8 @@ Server Block).
 
 ## Examples
 
-Allow `DNSZone` resources to be created for any zone:
+Allow `DNSZone` resources to be created for any zone and only read `DNSZone`
+resources from the `kube-system` namespace:
 
 ~~~ txt
 . {
@@ -98,7 +100,8 @@ Allow `DNSZone` resources to be created for any zone:
 }
 ~~~
 
-Allow `DNSZone` resources to be created for the `.local` zone:
+Allow `DNSZone` resources to be created for the `.local` zone and only read
+`DNSZone` resources from the `kube-system` namespace:
 
 
 ~~~ txt
@@ -115,12 +118,22 @@ local {
 }
 ~~~
 
-Only read `DNSZone` resources from the `kube-system` namespace:
+Only read `DNSZone` resources from the `dns-system` namespace:
 
 ~~~ txt
 . {
     forwardcrd {
-        namespace kube-system
+        namespace dns-system
+    }
+}
+~~~
+
+Read `DNSZone` resources from all namespaces:
+
+~~~ txt
+. {
+    forwardcrd {
+        namespace
     }
 }
 ~~~
@@ -155,14 +168,12 @@ kubectl apply -f ./manifests/crds/coredns.io_dnszones.yaml
 ```
 
 Assuming the **forwardcrd** plugin has been configured to allow `DNSZone`
-resources within any `zone`, but must be created in the `kube-system` namespace.
+resources in the `kube-system` namespace within any `zone`.
 E.g:
 
 ~~~ txt
 . {
-:   forwardcrd {
-        namespace kube-system
-    }
+    forwardcrd
 }
 ~~~
 

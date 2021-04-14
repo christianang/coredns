@@ -10,15 +10,18 @@ import (
 
 func TestForwardCRDParse(t *testing.T) {
 	c := caddy.NewTestController("dns", `forwardcrd`)
-	_, err := parseForwardCRD(c)
+	k, err := parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
+	}
+	if k.Namespace != "kube-system" {
+		t.Errorf("Expected Namespace to be: %s\n but was: %s\n", "kube-system", k.Namespace)
 	}
 
 	c = caddy.NewTestController("dns", `forwardcrd {
 		endpoint http://localhost:9090
 	}`)
-	k, err := parseForwardCRD(c)
+	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
@@ -79,25 +82,25 @@ func TestForwardCRDParse(t *testing.T) {
 	}
 
 	c = caddy.NewTestController("dns", `forwardcrd {
-		namespace kube-system
+		namespace
 	}`)
 	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
-	if k.Namespace != "kube-system" {
-		t.Errorf("Expected Namespace to be: %s\n but was: %s\n", "kube-system", k.Namespace)
+	if k.Namespace != "" {
+		t.Errorf("Expected Namespace to be: %q\n but was: %q\n", "", k.Namespace)
 	}
 
 	c = caddy.NewTestController("dns", `forwardcrd {
-		namespace kube-system
+		namespace dns-system
 	}`)
 	k, err = parseForwardCRD(c)
 	if err != nil {
 		t.Fatalf("Expected no errors, but got: %v", err)
 	}
-	if k.Namespace != "kube-system" {
-		t.Errorf("Expected Namespace to be: %s\n but was: %s\n", "kube-system", k.Namespace)
+	if k.Namespace != "dns-system" {
+		t.Errorf("Expected Namespace to be: %s\n but was: %s\n", "dns-system", k.Namespace)
 	}
 
 	// negative
@@ -148,6 +151,17 @@ func TestForwardCRDParse(t *testing.T) {
 
 	c = caddy.NewTestController("dns", `forwardcrd {
 		kubeconfig too many args
+	}`)
+	_, err = parseForwardCRD(c)
+	if err == nil {
+		t.Fatalf("Expected errors, but got nil")
+	}
+	if !strings.Contains(err.Error(), "Wrong argument count") {
+		t.Fatalf("Expected error containing \"Wrong argument count\", but got: %v", err.Error())
+	}
+
+	c = caddy.NewTestController("dns", `forwardcrd {
+		namespace too many args
 	}`)
 	_, err = parseForwardCRD(c)
 	if err == nil {

@@ -141,10 +141,13 @@ func parseStanza(c *caddy.Controller) (*ForwardCRD, error) {
 			k.ClientConfig = config
 		case "namespace":
 			args := c.RemainingArgs()
-			if len(args) != 1 {
+			if len(args) == 0 {
+				k.Namespace = ""
+			} else if len(args) == 1 {
+				k.Namespace = args[0]
+			} else {
 				return nil, c.ArgErr()
 			}
-			k.Namespace = args[0]
 		default:
 			return nil, c.Errf("unknown property '%s'", c.Val())
 		}

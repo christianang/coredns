@@ -38,6 +38,8 @@ type ForwardCRD struct {
 // New returns a new ForwardCRD instance.
 func New() *ForwardCRD {
 	return &ForwardCRD{
+		Namespace: "kube-system",
+
 		pluginInstanceMap: NewPluginInstanceMap(),
 	}
 }
