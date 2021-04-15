@@ -66,6 +66,28 @@ forwardcrd [ZONES...] {
 This plugin reports readiness to the ready plugin. This will happen after it has
 synced to the Kubernetes API.
 
+## Ordering
+
+Coredns has following precedence:
+Corefile Server Block -> `forwardcrd` plugin -> `forward` plugin.
+
+When `DNSZone` CRDs and Server Blocks define stub domains that are used,
+domains defined in the Corefile take precedence (in the event of zone overlap).
+in the Corefile take precedence (in the event of zone overlap). e.g. if the
+domain `example.com` is defined in the Corefile as a stub domain, and a
+`DNSZone` CRD record defined for `sub.example.com`, then `sub.example.com` would
+get forwarded to the upstream defined in the Corefile, not the `DNSZone`.
+
+When using `forwardcrd` and `forward` in the same Server Block, `DNSZones` take
+precedence over the `forward` plugin defined in the same Server Block. e.g. if a
+`DNSZone` is defined for `.`, then no queries would be forwarded to the upstream
+defined the `forward` plugin of the same Server Block.
+
+## Metrics
+
+`DNSZone` metrics are all labeled in a single zone (the zone of the enclosing
+Server Block).
+
 ## Examples
 
 Allow `DNSZone` resources to be created for any zone:
