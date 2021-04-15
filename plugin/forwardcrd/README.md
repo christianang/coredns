@@ -3,7 +3,7 @@
 ## Name
 
 *forwardcrd* - enables proxying DNS messages to upstream resolvers by reading
-CRDs from a Kubernetes cluster
+the `DNSZone` CRD from a Kubernetes cluster
 
 ## Description
 
