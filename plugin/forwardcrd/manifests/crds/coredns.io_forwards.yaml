@@ -6,26 +6,21 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: dnszones.coredns.io
+  name: forwards.coredns.io
 spec:
   group: coredns.io
   names:
-    kind: DNSZone
-    listKind: DNSZoneList
-    plural: dnszones
-    singular: dnszone
+    kind: Forward
+    listKind: ForwardList
+    plural: forwards
+    singular: forward
   scope: Namespaced
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .spec.zoneName
-      name: Zone Name
-      type: string
-    - jsonPath: .spec.forwardTo
-      name: Forward To
-      type: string
-    name: v1alpha1
+  - name: v1alpha1
     schema:
       openAPIV3Schema:
+        description: Forward represents a zone that should have its DNS requests forwarded
+          to an upstream DNS server within CoreDNS
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -40,18 +35,21 @@ spec:
           metadata:
             type: object
           spec:
+            description: ForwardSpec represents the spec of a Forward
             properties:
-              forwardTo:
+              from:
                 type: string
-              zoneName:
-                type: string
+              to:
+                items:
+                  type: string
+                type: array
             type: object
           status:
+            description: ForwardStatus represents the status of a Forward
             type: object
         type: object
     served: true
     storage: true
-    subresources: {}
 status:
   acceptedNames:
     kind: ""

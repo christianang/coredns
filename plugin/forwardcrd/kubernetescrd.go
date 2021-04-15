@@ -18,7 +18,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// ForwardCRD represents a plugin instance that can watch DNSZone CRDs
+// ForwardCRD represents a plugin instance that can watch Forward CRDs
 // within a Kubernetes clusters to dynamically configure stub-domains to proxy
 // requests to an upstream resolver.
 type ForwardCRD struct {
@@ -29,7 +29,7 @@ type ForwardCRD struct {
 	APICertAuth       string
 	Namespace         string
 	ClientConfig      clientcmd.ClientConfig
-	APIConn           dnsZoneCRDController
+	APIConn           forwardCRDController
 	Next              plugin.Handler
 
 	pluginInstanceMap *PluginInstanceMap
@@ -100,7 +100,7 @@ func (k *ForwardCRD) InitKubeCache(ctx context.Context) error {
 		return fmt.Errorf("failed to create forwardcrd controller: %q", err)
 	}
 
-	k.APIConn = newDNSZoneCRDController(ctx, dynamicKubeClient, scheme, k.Namespace, k.pluginInstanceMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
+	k.APIConn = newForwardCRDController(ctx, dynamicKubeClient, scheme, k.Namespace, k.pluginInstanceMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
 		return forward.NewWithConfig(cfg)
 	})
 

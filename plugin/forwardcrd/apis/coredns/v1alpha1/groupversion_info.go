@@ -26,8 +26,8 @@ func init() {
 
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(GroupVersion,
-		&DNSZone{},
-		&DNSZoneList{},
+		&Forward{},
+		&ForwardList{},
 	)
 
 	metav1.AddToGroupVersion(scheme, GroupVersion)

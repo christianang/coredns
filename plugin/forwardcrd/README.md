@@ -3,12 +3,12 @@
 ## Name
 
 *forwardcrd* - enables proxying DNS messages to upstream resolvers by reading
-the `DNSZone` CRD from a Kubernetes cluster
+the `Forward` CRD from a Kubernetes cluster
 
 ## Description
 
 The *forwardcrd* plugin is used to dynamically configure stub-domains by
-reading a `DNSZone` CRD within a Kubernetes cluster.
+reading a `Forward` CRD within a Kubernetes cluster.
 
 See [Configuring Private DNS Zones and Upstream Nameservers in
 Kubernetes](https://kubernetes.io/blog/2017/04/configuring-private-dns-zones-upstream-nameservers-kubernetes/)
@@ -21,7 +21,7 @@ This plugin can only be used once per Server Block.
 This plugin gives users of Kubernetes another avenue of modifying the CoreDNS
 server other than the `coredns` configmap. Therefore, it is important that you
 limit the RBAC and the `namespace` the plugin reads from to reduce the surface
-area a malicious actor can use. Ideally, the level of access to create `DNSZone`
+area a malicious actor can use. Ideally, the level of access to create `Forward`
 resources is at the same level as the access to the `coredns` configmap.
 
 ## Syntax
@@ -31,7 +31,7 @@ forwardcrd [ZONES...]
 ~~~
 
 With only the plugin specified, the *forwardcrd* plugin will default to the
-zone specified in the server's block. It will allow any `DNSZone` resource that
+zone specified in the server's block. It will allow any `Forward` resource that
 matches or includes the zone as a suffix. If **ZONES** are specified it allows
 any zone listed as a suffix.
 
@@ -54,7 +54,7 @@ forwardcrd [ZONES...] {
   then the current context specified in kubeconfig will be used.  It supports
   TLS, username and password, or token-based authentication.  This option is
   ignored if connecting in-cluster (i.e., the endpoint is not specified).
-* `namespace` **[NAMESPACE]** only reads `DNSZone` resources from the namespace
+* `namespace` **[NAMESPACE]** only reads `Forward` resources from the namespace
   listed. If this option is omitted then it will read from the default
   namespace, `kube-system`. If this option is specified without any namespaces
   listed it will read from all namespaces.  **Note**: It is recommended to limit
@@ -72,26 +72,26 @@ synced to the Kubernetes API.
 Coredns has following precedence:
 Corefile Server Block -> `forwardcrd` plugin -> `forward` plugin.
 
-When `DNSZone` CRDs and Server Blocks define stub domains that are used,
+When `Forward` CRDs and Server Blocks define stub domains that are used,
 domains defined in the Corefile take precedence (in the event of zone overlap).
 in the Corefile take precedence (in the event of zone overlap). e.g. if the
 domain `example.com` is defined in the Corefile as a stub domain, and a
-`DNSZone` CRD record defined for `sub.example.com`, then `sub.example.com` would
-get forwarded to the upstream defined in the Corefile, not the `DNSZone`.
+`Forward` CRD record defined for `sub.example.com`, then `sub.example.com` would
+get forwarded to the upstream defined in the Corefile, not the `Forward` CRD.
 
-When using `forwardcrd` and `forward` in the same Server Block, `DNSZones` take
-precedence over the `forward` plugin defined in the same Server Block. e.g. if a
-`DNSZone` is defined for `.`, then no queries would be forwarded to the upstream
-defined the `forward` plugin of the same Server Block.
+When using `forwardcrd` and `forward` in the same Server Block, `Forward` CRDs
+take precedence over the `forward` plugin defined in the same Server Block.
+e.g. if a `Forward` resource is defined for `.`, then no queries would be
+forwarded to the upstream defined the `forward` plugin of the same Server Block.
 
 ## Metrics
 
-`DNSZone` metrics are all labeled in a single zone (the zone of the enclosing
+`Forward` CRD metrics are all labeled in a single zone (the zone of the enclosing
 Server Block).
 
 ## Examples
 
-Allow `DNSZone` resources to be created for any zone and only read `DNSZone`
+Allow `Forward` resources to be created for any zone and only read `Forward`
 resources from the `kube-system` namespace:
 
 ~~~ txt
@@ -100,8 +100,8 @@ resources from the `kube-system` namespace:
 }
 ~~~
 
-Allow `DNSZone` resources to be created for the `.local` zone and only read
-`DNSZone` resources from the `kube-system` namespace:
+Allow `Forward` resources to be created for the `.local` zone and only read
+`Forward` resources from the `kube-system` namespace:
 
 
 ~~~ txt
@@ -118,7 +118,7 @@ local {
 }
 ~~~
 
-Only read `DNSZone` resources from the `dns-system` namespace:
+Only read `Forward` resources from the `dns-system` namespace:
 
 ~~~ txt
 . {
@@ -128,7 +128,7 @@ Only read `DNSZone` resources from the `dns-system` namespace:
 }
 ~~~
 
-Read `DNSZone` resources from all namespaces:
+Read `Forward` resources from all namespaces:
 
 ~~~ txt
 . {
@@ -159,15 +159,15 @@ or:
 }
 ~~~
 
-## DNSZone resource
+## Forward resource
 
-Apply the `DNSZone` CRD to your Kubernetes cluster.
+Apply the `Forward` CRD to your Kubernetes cluster.
 
 ```
-kubectl apply -f ./manifests/crds/coredns.io_dnszones.yaml
+kubectl apply -f ./manifests/crds/coredns.io_forwards.yaml
 ```
 
-Assuming the **forwardcrd** plugin has been configured to allow `DNSZone`
+Assuming the **forwardcrd** plugin has been configured to allow `Forward`
 resources in the `kube-system` namespace within any `zone`.
 E.g:
 
@@ -184,23 +184,24 @@ rules:
 - apiGroups:
   - coredns.io
   resources:
-  - dnszones
+  - forwards
   verbs:
   - list
   - watch
 ```
 
-Create the following `DNSZone` resource to forward `example.local` to the
+Create the following `Forward` resource to forward `example.local` to the
 nameserver `10.100.0.10`.
 
 ```yaml
 ---
 apiVersion: coredns.io/v1alpha1
-kind: DNSZone
+kind: Forward
 metadata:
   name: example-local
   namespace: kube-system
 spec:
-  zoneName: example.local
-  forwardTo: 10.100.0.10
+  from: example.local
+  to:
+  - 10.100.0.10
 ```

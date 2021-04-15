@@ -61,7 +61,7 @@ func setup(c *caddy.Controller) error {
 	c.OnStartup(func() error {
 		if taph := dnsserver.GetConfig(c).Handler("dnstap"); taph != nil {
 			if tapPlugin, ok := taph.(dnstap.Dnstap); ok {
-				k.APIConn.(*dnsZoneCRDControl).tapPlugin = &tapPlugin
+				k.APIConn.(*forwardCRDControl).tapPlugin = &tapPlugin
 			}
 		}
 		return nil

@@ -25,17 +25,17 @@ import (
 
 const defaultResyncPeriod = 0
 
-type dnsZoneCRDController interface {
+type forwardCRDController interface {
 	Run(threads int)
 	HasSynced() bool
 	Stop() error
 }
 
-type dnsZoneCRDControl struct {
+type forwardCRDControl struct {
 	client            dynamic.Interface
 	scheme            *runtime.Scheme
-	dnsZoneController cache.Controller
-	dnsZoneLister     cache.Store
+	forwardController cache.Controller
+	forwardLister     cache.Store
 	workqueue         workqueue.RateLimitingInterface
 	pluginMap         *PluginInstanceMap
 	instancer         pluginInstancer
@@ -58,30 +58,30 @@ type lifecyclePluginHandler interface {
 
 type pluginInstancer func(forward.ForwardConfig) (lifecyclePluginHandler, error)
 
-func newDNSZoneCRDController(ctx context.Context, client dynamic.Interface, scheme *runtime.Scheme, namespace string, pluginMap *PluginInstanceMap, instancer pluginInstancer) dnsZoneCRDController {
-	controller := dnsZoneCRDControl{
+func newForwardCRDController(ctx context.Context, client dynamic.Interface, scheme *runtime.Scheme, namespace string, pluginMap *PluginInstanceMap, instancer pluginInstancer) forwardCRDController {
+	controller := forwardCRDControl{
 		client:    client,
 		scheme:    scheme,
 		stopCh:    make(chan struct{}),
 		namespace: namespace,
 		pluginMap: pluginMap,
 		instancer: instancer,
-		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "DNSZoneCRD"),
+		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "ForwardCRD"),
 	}
 
-	controller.dnsZoneLister, controller.dnsZoneController = cache.NewInformer(
+	controller.forwardLister, controller.forwardController = cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				if namespace != "" {
-					return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).Namespace(namespace).List(ctx, options)
+					return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).Namespace(namespace).List(ctx, options)
 				}
-				return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).List(ctx, options)
+				return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).List(ctx, options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if namespace != "" {
-					return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).Namespace(namespace).Watch(ctx, options)
+					return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).Namespace(namespace).Watch(ctx, options)
 				}
-				return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).Watch(ctx, options)
+				return controller.client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).Watch(ctx, options)
 			},
 		},
 		&unstructured.Unstructured{},
@@ -113,13 +113,13 @@ func newDNSZoneCRDController(ctx context.Context, client dynamic.Interface, sche
 
 // Run starts the controller. Threads is the number of workers that can process
 // work on the workqueue in parallel.
-func (d *dnsZoneCRDControl) Run(threads int) {
+func (d *forwardCRDControl) Run(threads int) {
 	defer utilruntime.HandleCrash()
 	defer d.workqueue.ShutDown()
 
-	go d.dnsZoneController.Run(d.stopCh)
+	go d.forwardController.Run(d.stopCh)
 
-	if !cache.WaitForCacheSync(d.stopCh, d.dnsZoneController.HasSynced) {
+	if !cache.WaitForCacheSync(d.stopCh, d.forwardController.HasSynced) {
 		utilruntime.HandleError(errors.New("Timed out waiting for caches to sync"))
 		return
 	}
@@ -138,12 +138,12 @@ func (d *dnsZoneCRDControl) Run(threads int) {
 
 // HasSynced returns true once the controller has completed an initial resource
 // listing.
-func (d *dnsZoneCRDControl) HasSynced() bool {
-	return d.dnsZoneController.HasSynced()
+func (d *forwardCRDControl) HasSynced() bool {
+	return d.forwardController.HasSynced()
 }
 
 // Stop stops the controller.
-func (d *dnsZoneCRDControl) Stop() error {
+func (d *forwardCRDControl) Stop() error {
 	d.stopLock.Lock()
 	defer d.stopLock.Unlock()
 
@@ -158,12 +158,12 @@ func (d *dnsZoneCRDControl) Stop() error {
 	return fmt.Errorf("shutdown already in progress")
 }
 
-func (d *dnsZoneCRDControl) runWorker() {
+func (d *forwardCRDControl) runWorker() {
 	for d.processNextItem() {
 	}
 }
 
-func (d *dnsZoneCRDControl) processNextItem() bool {
+func (d *forwardCRDControl) processNextItem() bool {
 	key, quit := d.workqueue.Get()
 	if quit {
 		return false
@@ -173,7 +173,7 @@ func (d *dnsZoneCRDControl) processNextItem() bool {
 
 	err := d.sync(key.(string))
 	if err != nil {
-		log.Errorf("Error syncing DNSZone %v: %v", key, err)
+		log.Errorf("Error syncing Forward %v: %v", key, err)
 		d.workqueue.AddRateLimited(key)
 		return true
 	}
@@ -183,8 +183,8 @@ func (d *dnsZoneCRDControl) processNextItem() bool {
 	return true
 }
 
-func (d *dnsZoneCRDControl) sync(key string) error {
-	obj, exists, err := d.dnsZoneLister.GetByKey(key)
+func (d *forwardCRDControl) sync(key string) error {
+	obj, exists, err := d.forwardLister.GetByKey(key)
 	if err != nil {
 		return err
 	}
@@ -195,13 +195,13 @@ func (d *dnsZoneCRDControl) sync(key string) error {
 			plugin.OnShutdown()
 		}
 	} else {
-		dnsZone, err := d.convertToDNSZone(obj.(runtime.Object))
+		f, err := d.convertToForward(obj.(runtime.Object))
 		if err != nil {
 			return err
 		}
 		forwardConfig := forward.ForwardConfig{
-			From:      dnsZone.Spec.ZoneName,
-			To:        []string{dnsZone.Spec.ForwardTo},
+			From:      f.Spec.From,
+			To:        f.Spec.To,
 			TapPlugin: d.tapPlugin,
 		}
 		plugin, err := d.instancer(forwardConfig)
@@ -212,7 +212,7 @@ func (d *dnsZoneCRDControl) sync(key string) error {
 		if err != nil {
 			return err
 		}
-		oldPlugin, updated := d.pluginMap.Upsert(key, dnsZone.Spec.ZoneName, plugin)
+		oldPlugin, updated := d.pluginMap.Upsert(key, f.Spec.From, plugin)
 		if updated {
 			oldPlugin.OnShutdown()
 		}
@@ -221,17 +221,17 @@ func (d *dnsZoneCRDControl) sync(key string) error {
 	return nil
 }
 
-func (d *dnsZoneCRDControl) convertToDNSZone(obj runtime.Object) (*corednsv1alpha1.DNSZone, error) {
+func (d *forwardCRDControl) convertToForward(obj runtime.Object) (*corednsv1alpha1.Forward, error) {
 	unstructured, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return nil, fmt.Errorf("object was not Unstructured")
 	}
 
 	switch unstructured.GetKind() {
-	case "DNSZone":
-		dnsZone := &corednsv1alpha1.DNSZone{}
-		err := d.scheme.Convert(unstructured, dnsZone, nil)
-		return dnsZone, err
+	case "Forward":
+		forward := &corednsv1alpha1.Forward{}
+		err := d.scheme.Convert(unstructured, forward, nil)
+		return forward, err
 	default:
 		return nil, fmt.Errorf("unsupported object type: %T", unstructured)
 	}

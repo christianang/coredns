@@ -17,22 +17,22 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 )
 
-func TestCreateDNSZone(t *testing.T) {
+func TestCreateForward(t *testing.T) {
 	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "")
-	dnsZone := &corednsv1alpha1.DNSZone{
+	forward := &corednsv1alpha1.Forward{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dns-zone",
 			Namespace: "default",
 		},
-		Spec: corednsv1alpha1.DNSZoneSpec{
-			ZoneName:  "crd.test",
-			ForwardTo: "127.0.0.2",
+		Spec: corednsv1alpha1.ForwardSpec{
+			From: "crd.test",
+			To:   []string{"127.0.0.2", "127.0.0.3"},
 		},
 	}
 
-	_, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+	_, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).
 		Namespace("default").
-		Create(context.Background(), mustDNSZoneToUnstructured(dnsZone), metav1.CreateOptions{})
+		Create(context.Background(), mustForwardToUnstructured(forward), metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Expected not to error: %s", err)
 	}
@@ -49,12 +49,16 @@ func TestCreateDNSZone(t *testing.T) {
 		t.Fatalf("Expected plugin to be created for zone: %s but was: %s", "crd.test", handler.ReceivedConfig.From)
 	}
 
-	if len(handler.ReceivedConfig.To) != 1 {
-		t.Fatalf("Expected plugin to contain exactly 1 server to forward to but contains: %#v", handler.ReceivedConfig.To)
+	if len(handler.ReceivedConfig.To) != 2 {
+		t.Fatalf("Expected plugin to contain exactly 2 servers to forward to but contains: %#v", handler.ReceivedConfig.To)
 	}
 
 	if handler.ReceivedConfig.To[0] != "127.0.0.2" {
 		t.Fatalf("Expected plugin to be created to forward to: %s but was: %s", "127.0.0.2", handler.ReceivedConfig.To[0])
+	}
+
+	if handler.ReceivedConfig.To[1] != "127.0.0.3" {
+		t.Fatalf("Expected plugin to be created to forward to: %s but was: %s", "127.0.0.3", handler.ReceivedConfig.To[1])
 	}
 
 	pluginHandler, ok := pluginInstanceMap.Get("crd.test")
@@ -82,22 +86,22 @@ func TestCreateDNSZone(t *testing.T) {
 	}
 }
 
-func TestUpdateDNSZone(t *testing.T) {
+func TestUpdateForward(t *testing.T) {
 	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "")
-	dnsZone := &corednsv1alpha1.DNSZone{
+	forward := &corednsv1alpha1.Forward{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dns-zone",
 			Namespace: "default",
 		},
-		Spec: corednsv1alpha1.DNSZoneSpec{
-			ZoneName:  "crd.test",
-			ForwardTo: "127.0.0.2",
+		Spec: corednsv1alpha1.ForwardSpec{
+			From: "crd.test",
+			To:   []string{"127.0.0.2"},
 		},
 	}
 
-	unstructuredDNSZone, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+	unstructuredForward, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).
 		Namespace("default").
-		Create(context.Background(), mustDNSZoneToUnstructured(dnsZone), metav1.CreateOptions{})
+		Create(context.Background(), mustForwardToUnstructured(forward), metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Expected not to error: %s", err)
 	}
@@ -109,13 +113,13 @@ func TestUpdateDNSZone(t *testing.T) {
 		t.Fatalf("Expected plugin instance to have been called: %s", err)
 	}
 
-	dnsZone = mustUnstructuredToDNSZone(unstructuredDNSZone)
-	dnsZone.Spec.ZoneName = "other.test"
-	dnsZone.Spec.ForwardTo = "127.0.0.3"
+	forward = mustUnstructuredToForward(unstructuredForward)
+	forward.Spec.From = "other.test"
+	forward.Spec.To = []string{"127.0.0.3"}
 
-	_, err = client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+	_, err = client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).
 		Namespace("default").
-		Update(context.Background(), mustDNSZoneToUnstructured(dnsZone), metav1.UpdateOptions{})
+		Update(context.Background(), mustForwardToUnstructured(forward), metav1.UpdateOptions{})
 	if err != nil {
 		t.Fatalf("Expected not to error: %s", err)
 	}
@@ -163,22 +167,22 @@ func TestUpdateDNSZone(t *testing.T) {
 	}
 }
 
-func TestDeleteDNSZone(t *testing.T) {
+func TestDeleteForward(t *testing.T) {
 	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "")
-	dnsZone := &corednsv1alpha1.DNSZone{
+	forward := &corednsv1alpha1.Forward{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dns-zone",
 			Namespace: "default",
 		},
-		Spec: corednsv1alpha1.DNSZoneSpec{
-			ZoneName:  "crd.test",
-			ForwardTo: "127.0.0.2",
+		Spec: corednsv1alpha1.ForwardSpec{
+			From: "crd.test",
+			To:   []string{"127.0.0.2"},
 		},
 	}
 
-	_, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+	_, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).
 		Namespace("default").
-		Create(context.Background(), mustDNSZoneToUnstructured(dnsZone), metav1.CreateOptions{})
+		Create(context.Background(), mustForwardToUnstructured(forward), metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Expected not to error: %s", err)
 	}
@@ -190,7 +194,7 @@ func TestDeleteDNSZone(t *testing.T) {
 		t.Fatalf("Expected plugin instance to have been called: %s", err)
 	}
 
-	err = client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+	err = client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).
 		Namespace("default").
 		Delete(context.Background(), "test-dns-zone", metav1.DeleteOptions{})
 	if err != nil {
@@ -214,40 +218,40 @@ func TestDeleteDNSZone(t *testing.T) {
 	}
 }
 
-func TestDNSZoneLimitNamespace(t *testing.T) {
+func TestForwardLimitNamespace(t *testing.T) {
 	controller, client, testPluginInstancer, pluginInstanceMap := setupControllerTestcase(t, "kube-system")
-	dnsZone := &corednsv1alpha1.DNSZone{
+	forward := &corednsv1alpha1.Forward{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-dns-zone",
 			Namespace: "default",
 		},
-		Spec: corednsv1alpha1.DNSZoneSpec{
-			ZoneName:  "crd.test",
-			ForwardTo: "127.0.0.2",
+		Spec: corednsv1alpha1.ForwardSpec{
+			From: "crd.test",
+			To:   []string{"127.0.0.2"},
 		},
 	}
 
-	_, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+	_, err := client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).
 		Namespace("default").
-		Create(context.Background(), mustDNSZoneToUnstructured(dnsZone), metav1.CreateOptions{})
+		Create(context.Background(), mustForwardToUnstructured(forward), metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Expected not to error: %s", err)
 	}
 
-	kubeSystemDNSZone := &corednsv1alpha1.DNSZone{
+	kubeSystemForward := &corednsv1alpha1.Forward{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "system-dns-zone",
 			Namespace: "kube-system",
 		},
-		Spec: corednsv1alpha1.DNSZoneSpec{
-			ZoneName:  "system.test",
-			ForwardTo: "127.0.0.3",
+		Spec: corednsv1alpha1.ForwardSpec{
+			From: "system.test",
+			To:   []string{"127.0.0.3"},
 		},
 	}
 
-	_, err = client.Resource(corednsv1alpha1.GroupVersion.WithResource("dnszones")).
+	_, err = client.Resource(corednsv1alpha1.GroupVersion.WithResource("forwards")).
 		Namespace("kube-system").
-		Create(context.Background(), mustDNSZoneToUnstructured(kubeSystemDNSZone), metav1.CreateOptions{})
+		Create(context.Background(), mustForwardToUnstructured(kubeSystemForward), metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Expected not to error: %s", err)
 	}
@@ -279,16 +283,16 @@ func TestDNSZoneLimitNamespace(t *testing.T) {
 	}
 }
 
-func setupControllerTestcase(t *testing.T, namespace string) (dnsZoneCRDController, *fake.FakeDynamicClient, *TestPluginInstancer, *PluginInstanceMap) {
+func setupControllerTestcase(t *testing.T, namespace string) (forwardCRDController, *fake.FakeDynamicClient, *TestPluginInstancer, *PluginInstanceMap) {
 	scheme := runtime.NewScheme()
-	scheme.AddKnownTypes(corednsv1alpha1.GroupVersion, &corednsv1alpha1.DNSZone{})
+	scheme.AddKnownTypes(corednsv1alpha1.GroupVersion, &corednsv1alpha1.Forward{})
 	customListKinds := map[schema.GroupVersionResource]string{
-		corednsv1alpha1.GroupVersion.WithResource("dnszones"): "DNSZoneList",
+		corednsv1alpha1.GroupVersion.WithResource("forwards"): "ForwardList",
 	}
 	client := fake.NewSimpleDynamicClientWithCustomListKinds(scheme, customListKinds)
 	pluginMap := NewPluginInstanceMap()
 	testPluginInstancer := &TestPluginInstancer{}
-	controller := newDNSZoneCRDController(context.Background(), client, scheme, namespace, pluginMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
+	controller := newForwardCRDController(context.Background(), client, scheme, namespace, pluginMap, func(cfg forward.ForwardConfig) (lifecyclePluginHandler, error) {
 		return testPluginInstancer.NewWithConfig(cfg)
 	})
 
@@ -304,13 +308,13 @@ func setupControllerTestcase(t *testing.T, namespace string) (dnsZoneCRDControll
 	return controller, client, testPluginInstancer, pluginMap
 }
 
-func mustDNSZoneToUnstructured(dnsZone *corednsv1alpha1.DNSZone) *unstructured.Unstructured {
-	dnsZone.TypeMeta = metav1.TypeMeta{
-		Kind:       "DNSZone",
+func mustForwardToUnstructured(forward *corednsv1alpha1.Forward) *unstructured.Unstructured {
+	forward.TypeMeta = metav1.TypeMeta{
+		Kind:       "Forward",
 		APIVersion: "coredns.io/v1alpha1",
 	}
 
-	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(dnsZone)
+	obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(forward)
 	if err != nil {
 		panic(fmt.Sprintf("coding error: unable to convert to unstructured: %s", err))
 	}
@@ -319,11 +323,11 @@ func mustDNSZoneToUnstructured(dnsZone *corednsv1alpha1.DNSZone) *unstructured.U
 	}
 }
 
-func mustUnstructuredToDNSZone(obj *unstructured.Unstructured) *corednsv1alpha1.DNSZone {
-	dnsZone := &corednsv1alpha1.DNSZone{}
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, dnsZone)
+func mustUnstructuredToForward(obj *unstructured.Unstructured) *corednsv1alpha1.Forward {
+	forward := &corednsv1alpha1.Forward{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, forward)
 	if err != nil {
 		panic(fmt.Sprintf("coding error: unable to convert from unstructured: %s", err))
 	}
-	return dnsZone
+	return forward
 }
