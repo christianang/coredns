@@ -69,12 +69,12 @@ synced to the Kubernetes API.
 
 ## Ordering
 
-Coredns has following precedence:
-Corefile Server Block -> `forwardcrd` plugin -> `forward` plugin.
+Forward behavior can be defined in three ways, via a Server Block, via the *forwardcrd* plugin, and via the *forward* plugin.  If more than one of these methods is employed and a query falls within the zone of more than one, CoreDNS selects which one to use based on the following precedence:
+Corefile Server Block -> *forwardcrd* plugin -> *forward* plugin.
 
 When `Forward` CRDs and Server Blocks define stub domains that are used,
 domains defined in the Corefile take precedence (in the event of zone overlap).
-in the Corefile take precedence (in the event of zone overlap). e.g. if the
+e.g. if the
 domain `example.com` is defined in the Corefile as a stub domain, and a
 `Forward` CRD record defined for `sub.example.com`, then `sub.example.com` would
 get forwarded to the upstream defined in the Corefile, not the `Forward` CRD.
