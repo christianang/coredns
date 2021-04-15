@@ -79,10 +79,10 @@ domain `example.com` is defined in the Corefile as a stub domain, and a
 `Forward` CRD record defined for `sub.example.com`, then `sub.example.com` would
 get forwarded to the upstream defined in the Corefile, not the `Forward` CRD.
 
-When using `forwardcrd` and `forward` in the same Server Block, `Forward` CRDs
-take precedence over the `forward` plugin defined in the same Server Block.
-e.g. if a `Forward` resource is defined for `.`, then no queries would be
-forwarded to the upstream defined the `forward` plugin of the same Server Block.
+When using *forwardcrd* and *forward* plugins in the same Server Block, `Forward` CRDs
+take precedence over the *forward* plugin defined in the same Server Block.
+e.g. if a `Forward` CRD is defined for `.`, then no queries would be
+forwarded to the upstream defined in the *forward* plugin of the same Server Block.
 
 ## Metrics
 
@@ -167,7 +167,7 @@ Apply the `Forward` CRD to your Kubernetes cluster.
 kubectl apply -f ./manifests/crds/coredns.io_forwards.yaml
 ```
 
-Assuming the **forwardcrd** plugin has been configured to allow `Forward`
+Assuming the *forwardcrd* plugin has been configured to allow `Forward`
 resources in the `kube-system` namespace within any `zone`.
 E.g:
 
