@@ -69,7 +69,10 @@ synced to the Kubernetes API.
 
 ## Ordering
 
-Forward behavior can be defined in three ways, via a Server Block, via the *forwardcrd* plugin, and via the *forward* plugin.  If more than one of these methods is employed and a query falls within the zone of more than one, CoreDNS selects which one to use based on the following precedence:
+Forward behavior can be defined in three ways, via a Server Block, via the
+*forwardcrd* plugin, and via the *forward* plugin.  If more than one of these
+methods is employed and a query falls within the zone of more than one, CoreDNS
+selects which one to use based on the following precedence:
 Corefile Server Block -> *forwardcrd* plugin -> *forward* plugin.
 
 When `Forward` CRDs and Server Blocks define stub domains that are used,
@@ -89,7 +92,100 @@ forwarded to the upstream defined in the *forward* plugin of the same Server Blo
 `Forward` CRD metrics are all labeled in a single zone (the zone of the enclosing
 Server Block).
 
+## Forward CRD
+
+The `Forward` CRD has the following spec properties:
+
+* **from** is the base domain to match for the request to be forwarded.
+* **to** are the destination endpoints to forward to. The **to** syntax allows
+  you to specify a protocol, `tls://9.9.9.9` or `dns://` (or no protocol) for
+  plain DNS. The number of upstreams is limited to 15.
+
 ## Examples
+
+The following is an example of how you might modify the `coredns` ConfigMap of
+your cluster to enable the *forwardcrd* plugin. The following configuration will
+watch and read any `Forward` CRD records in the `kube-system` namespace for
+*any* zone name. This means you are able to able to create a `Forward` CRD
+record that overlaps an existing zone.
+
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+            lameduck 5s
+        }
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+            pods insecure
+            fallthrough in-addr.arpa ip6.arpa
+            ttl 30
+        }
+        forwardcrd
+        prometheus :9153
+        forward . /etc/resolv.conf
+        cache 30
+        loop
+        reload
+        loadbalance
+    }
+```
+
+When you want to enable the *forwardcrd* plugin, you will need to apply the CRD
+as well.
+
+```
+kubectl apply -f ./manifests/crds/coredns.io_forwards.yaml
+```
+
+Also note that the `ClusterRole` for CoreDNS must include:
+In addition, you will need to modify the `system:coredns` ClusterRole in the
+`kube-system` namespace to include the following:
+
+```yaml
+rules:
+- apiGroups:
+  - coredns.io
+  resources:
+  - forwards
+  verbs:
+  - list
+  - watch
+```
+
+This will allow CoreDNS to watch and list `Forward` CRD records from the
+Kubernetes API.
+
+Now you can configure stubdomains by creating `Forward` CRD records in the
+`kube-system` namespace.
+
+For example, if a cluster operator has a [Consul](https://www.consul.io/) domain
+server located at 10.150.0.1, and all Consul names have the suffix
+.consul.local. To configure this, the cluster administrator creates the
+following record:
+
+```yaml
+---
+apiVersion: coredns.io/v1alpha1
+kind: Forward
+metadata:
+  name: consul-local
+  namespace: kube-system
+spec:
+  from: consul.local
+  to:
+  - 10.150.0.1
+```
+
+### Additional examples
 
 Allow `Forward` resources to be created for any zone and only read `Forward`
 resources from the `kube-system` namespace:
@@ -158,50 +254,3 @@ or:
     }
 }
 ~~~
-
-## Forward resource
-
-Apply the `Forward` CRD to your Kubernetes cluster.
-
-```
-kubectl apply -f ./manifests/crds/coredns.io_forwards.yaml
-```
-
-Assuming the *forwardcrd* plugin has been configured to allow `Forward`
-resources in the `kube-system` namespace within any `zone`.
-E.g:
-
-~~~ txt
-. {
-    forwardcrd
-}
-~~~
-
-Also note that the `ClusterRole` for CoreDNS must include:
-
-```yaml
-rules:
-- apiGroups:
-  - coredns.io
-  resources:
-  - forwards
-  verbs:
-  - list
-  - watch
-```
-
-Create the following `Forward` resource to forward `example.local` to the
-nameserver `10.100.0.10`.
-
-```yaml
----
-apiVersion: coredns.io/v1alpha1
-kind: Forward
-metadata:
-  name: example-local
-  namespace: kube-system
-spec:
-  from: example.local
-  to:
-  - 10.100.0.10
-```
