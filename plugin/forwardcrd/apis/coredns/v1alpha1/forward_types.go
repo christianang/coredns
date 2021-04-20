@@ -14,10 +14,9 @@ type ForwardSpec struct {
 type ForwardStatus struct {
 }
 
+// +kubebuilder:object:root=true
 // +kubebuilder:printcolumn:name="From",type=string,JSONPath=`.spec.from`
 // +kubebuilder:printcolumn:name="To",type=string,JSONPath=`.spec.to`
-
-// +kubebuilder:object:root=true
 
 // Forward represents a zone that should have its DNS requests forwarded to an
 // upstream DNS server within CoreDNS

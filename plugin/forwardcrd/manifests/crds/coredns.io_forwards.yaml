@@ -16,7 +16,14 @@ spec:
     singular: forward
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.from
+      name: From
+      type: string
+    - jsonPath: .spec.to
+      name: To
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Forward represents a zone that should have its DNS requests forwarded
@@ -50,6 +57,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
