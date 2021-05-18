@@ -98,18 +98,8 @@ func parseForwardCRD(c *caddy.Controller) (*ForwardCRD, error) {
 func parseStanza(c *caddy.Controller) (*ForwardCRD, error) {
 	k := New()
 
-	zones := c.RemainingArgs()
-	if len(zones) != 0 {
-		k.Zones = make([]string, len(zones))
-		for i := 0; i < len(k.Zones); i++ {
-			k.Zones[i] = plugin.Host(zones[i]).Normalize()
-		}
-	} else {
-		k.Zones = make([]string, len(c.ServerBlockKeys))
-		for i := 0; i < len(k.Zones); i++ {
-			k.Zones[i] = plugin.Host(c.ServerBlockKeys[i]).Normalize()
-		}
-	}
+	args := c.RemainingArgs()
+	k.Zones = plugin.OriginsFromArgsOrServerBlock(args, c.ServerBlockKeys)
 
 	for c.NextBlock() {
 		switch c.Val() {

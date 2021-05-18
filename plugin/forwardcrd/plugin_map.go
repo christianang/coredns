@@ -32,7 +32,7 @@ func (p *PluginInstanceMap) Upsert(key, zone string, handler lifecyclePluginHand
 	var isUpdate bool
 	var oldPlugin lifecyclePluginHandler
 	p.mutex.Lock()
-	normalizedZone := plugin.Host(zone).Normalize()
+	normalizedZone := plugin.Host(zone).Normalize()[0] // there can only be one here, won't work with non-octet reverse
 	oldZone, ok := p.keyToZones[key]
 	if ok {
 		oldPlugin = p.zonesToPlugins[oldZone]
@@ -50,7 +50,7 @@ func (p *PluginInstanceMap) Upsert(key, zone string, handler lifecyclePluginHand
 // plugin handler exists and false if it does not exist.
 func (p *PluginInstanceMap) Get(zone string) (lifecyclePluginHandler, bool) {
 	p.mutex.RLock()
-	normalizedZone := plugin.Host(zone).Normalize()
+	normalizedZone := plugin.Host(zone).Normalize()[0] // there can only be one here, won't work with non-octet reverse
 	handler, ok := p.zonesToPlugins[normalizedZone]
 	p.mutex.RUnlock()
 	return handler, ok
